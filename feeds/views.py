@@ -22,7 +22,7 @@ class LabelViewSet(viewsets.ModelViewSet):
     serializer_class = LabelSerializer
 
     def perform_create(self, serializer):
-        serializer.save(user = self.request.user
+        serializer.save(user = self.request.user)
 
 class FeedSourceLabelSerializer(viewsets.ModelViewSet):
     queryset = FeedSourceLabel.objects.all()
