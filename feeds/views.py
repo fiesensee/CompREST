@@ -1,9 +1,12 @@
-from django.shortcuts import render
+from django.shortcuts import render, HttpResponseRedirect
 from django.contrib.auth.models import User
+from django.http import HttpResponse
 from .models import FeedSource, Label, FeedSourceLabel
-from rest_framework import viewsets, permissions
-from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
+from rest_framework import viewsets, permissions, generics
+from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer, CreateFeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
+import requests
+from django.views.decorators.csrf import csrf_exempt
 
 class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, TokenHasReadWriteScope]
@@ -27,3 +30,15 @@ class LabelViewSet(viewsets.ModelViewSet):
 class FeedSourceLabelSerializer(viewsets.ModelViewSet):
     queryset = FeedSourceLabel.objects.all()
     serializer_class = FeedSourceLabelSerializer
+
+class CreateFeedSourceLabelView(viewsets.ModelViewSet):
+    queryset = FeedSourceLabel.objects.all()
+    serializer_class = CreateFeedSourceLabelSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user = self.request.user)
+
+def proxy(request, url):
+    req = requests.get(url)
+    response = HttpResponse(req.text)
+    return response

@@ -13,22 +13,25 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url, include
+from django.conf.urls import url, include, patterns
 from django.contrib import admin
 from rest_framework import routers
 from feeds import views
 import oauth2_provider
+from httpproxy.views import HttpProxy
 
 router = routers.DefaultRouter()
 router.register(r'users', views.UserViewSet)
 router.register(r'feedsources', views.FeedSourceViewSet)
 router.register(r'labels', views.LabelViewSet)
 router.register(r'feedsourcelabels', views.FeedSourceLabelSerializer)
+router.register(r'createfeedsourcelabel', views.CreateFeedSourceLabelView)
 
 
 urlpatterns = [
     url(r'^', include(router.urls)),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
-    url(r'^admin/', admin.site.urls)
+    url(r'^admin/', admin.site.urls),
+    url(r'^proxy/(?P<url>.*)$', views.proxy)
 ]
