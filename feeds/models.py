@@ -25,3 +25,4 @@ class FeedSourceLabel(models.Model):
 
     label = models.ForeignKey(Label)
     feedsource = models.ForeignKey(FeedSource)
+    user = models.ForeignKey(User)

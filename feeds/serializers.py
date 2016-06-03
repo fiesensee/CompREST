@@ -67,17 +67,18 @@ class createAndUpdateLabelSerializer(serializers.Serializer):
 class FeedSourceLabelSerializer(serializers.HyperlinkedModelSerializer):
     feedsource = FeedSourceSerializer(read_only = True)
     label = LabelSerializer(read_only = True)
+    user = serializers.ReadOnlyField(source='user.username')
 
 
     class Meta:
         model = FeedSourceLabel
-        fields = ('url', 'feedsource', 'label')
+        fields = ('url', 'feedsource', 'label', 'user')
 
 class CreateFeedSourceLabelSerializer(serializers.HyperlinkedModelSerializer):
     feedsource = serializers.HyperlinkedRelatedField(view_name="feedsource-detail", queryset = FeedSource.objects.all())
     label = serializers.HyperlinkedRelatedField(view_name="label-detail", queryset = Label.objects.all())
-
+    user = serializers.ReadOnlyField(source='user.username')
 
     class Meta:
         model = FeedSourceLabel
-        fields = ('url', 'feedsource', 'label')
+        fields = ('url', 'feedsource', 'label', 'user')
