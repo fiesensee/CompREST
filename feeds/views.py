@@ -3,10 +3,12 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse
 from .models import FeedSource, Label, FeedSourceLabel
 from rest_framework import viewsets, permissions, generics
-from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer, CreateFeedSourceLabelSerializer
+from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
-import requests
+from oauth2_provider.decorators import protected_resource
+import requests, json
 from django.views.decorators.csrf import csrf_exempt
+from oauth2_provider.views.generic import ProtectedResourceView
 
 class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, TokenHasReadWriteScope]
@@ -27,18 +29,29 @@ class LabelViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user = self.request.user)
 
-class FeedSourceLabelSerializer(viewsets.ModelViewSet):
+class FeedSourceLabelViewSet(viewsets.ModelViewSet):
     queryset = FeedSourceLabel.objects.all()
     serializer_class = FeedSourceLabelSerializer
-
-class CreateFeedSourceLabelView(viewsets.ModelViewSet):
-    queryset = FeedSourceLabel.objects.all()
-    serializer_class = CreateFeedSourceLabelSerializer
-
-    def perform_create(self, serializer):
-        serializer.save(user = self.request.user)
 
 def proxy(request, url):
     req = requests.get(url)
     response = HttpResponse(req.text)
     return response
+
+class CreateFeedSourceLabels(ProtectedResourceView):
+
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        super(CreateFeedSourceLabels, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        joins = json.loads(request.body)
+        print joins
+        for join in joins:
+            label = Label.objects.get(pk = join['labelId'])
+            feedSourceIds = join['feedSourceIds']
+            joinObjects = FeedSourceLabel.objects.filter(label = label)
+            joinObjects.delete()
+            for feedSourceId in feedSourceIds:
+                feedSource = FeedSource.objects.get(pk = feedSourceId)
+                FeedSourceLabel.objects.create(label = label, feedSource = feedSource, user = self.request.user)
