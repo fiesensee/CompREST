@@ -6,7 +6,7 @@ from rest_framework import viewsets, permissions, generics
 from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
 from oauth2_provider.decorators import protected_resource
-import json, feedparser
+import json, feedparser, pytz
 import datetime
 import time
 from django.views.decorators.csrf import csrf_exempt
@@ -58,6 +58,8 @@ def proxy(request, url):
     source = feedparser.parse(url)
     defaultText = 'undefined'
     defaultDate = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    utc = pytz.utc
+    berlin = pytz.timezone('Europe/Berlin')
     for entry in source['items']:
         feed = {
             'title':defaultText,
@@ -72,7 +74,9 @@ def proxy(request, url):
         if('link' in entry):
             feed['link'] = entry['link']
         if('published_parsed' in entry):
-            feed['date'] = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed'])).strftime("%d-%m-%Y %H:%M:%S")
+            date = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed']))
+            utcDate = utc.localize(date)
+            feed['date'] = utcDate.astimezone(berlin).strftime("%d-%m-%Y %H:%M:%S")
         feeds.append(feed)
 
     response = HttpResponse(json.dumps(feeds))
