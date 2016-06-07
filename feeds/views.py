@@ -6,7 +6,9 @@ from rest_framework import viewsets, permissions, generics
 from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
 from oauth2_provider.decorators import protected_resource
-import requests, json
+import json, feedparser
+import datetime
+import time
 from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.views.generic import ProtectedResourceView
 
@@ -33,11 +35,6 @@ class FeedSourceLabelViewSet(viewsets.ModelViewSet):
     queryset = FeedSourceLabel.objects.all()
     serializer_class = FeedSourceLabelSerializer
 
-def proxy(request, url):
-    req = requests.get(url)
-    response = HttpResponse(req.text)
-    return response
-
 class CreateFeedSourceLabels(ProtectedResourceView):
 
     @csrf_exempt
@@ -55,3 +52,28 @@ class CreateFeedSourceLabels(ProtectedResourceView):
             for feedSourceId in feedSourceIds:
                 feedSource = FeedSource.objects.get(pk = feedSourceId)
                 FeedSourceLabel.objects.create(label = label, feedSource = feedSource, user = self.request.user)
+
+def proxy(request, url):
+    feeds = []
+    source = feedparser.parse(url)
+    defaultText = 'undefined'
+    defaultDate = datetime.datetime.now().isoformat()
+    for entry in source['items']:
+        feed = {
+            'title':defaultText,
+            'description':defaultText,
+            'link':defaultText,
+            'date':defaultDate
+        }
+        if('title' in entry):
+            feed['title'] = entry['title']
+        if('description' in entry):
+            feed['description'] = entry['description']
+        if('link' in entry):
+            feed['link'] = entry['link']
+        if('published_parsed' in entry):
+            feed['date'] = entry['published']
+        feeds.append(feed)
+
+    response = HttpResponse(json.dumps(feeds))
+    return response
