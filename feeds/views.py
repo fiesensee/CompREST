@@ -57,7 +57,7 @@ def proxy(request, url):
     feeds = []
     source = feedparser.parse(url)
     defaultText = 'undefined'
-    defaultDate = datetime.datetime.now().isoformat()
+    defaultDate = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     for entry in source['items']:
         feed = {
             'title':defaultText,
@@ -72,7 +72,7 @@ def proxy(request, url):
         if('link' in entry):
             feed['link'] = entry['link']
         if('published_parsed' in entry):
-            feed['date'] = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed'])).isoformat()
+            feed['date'] = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed'])).strftime("%d-%m-%Y %H:%M:%S")
         feeds.append(feed)
 
     response = HttpResponse(json.dumps(feeds))
