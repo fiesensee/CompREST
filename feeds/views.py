@@ -72,7 +72,7 @@ def proxy(request, url):
         if('link' in entry):
             feed['link'] = entry['link']
         if('published_parsed' in entry):
-            feed['date'] = entry['published']
+            feed['date'] = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed'])).isoformat()
         feeds.append(feed)
 
     response = HttpResponse(json.dumps(feeds))
