@@ -11,6 +11,7 @@ import datetime
 import time
 from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.views.generic import ProtectedResourceView
+from pyelasticsearch import ElasticSearch
 
 class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, TokenHasReadWriteScope]
@@ -53,31 +54,50 @@ class CreateFeedSourceLabels(ProtectedResourceView):
                 feedSource = FeedSource.objects.get(pk = feedSourceId)
                 FeedSourceLabel.objects.create(label = label, feedSource = feedSource, user = self.request.user)
 
-def proxy(request, url):
+@csrf_exempt
+def getFeeds(request):
+    es = ElasticSearch('http://fisensee.ddns.net:9200/')
     feeds = []
-    source = feedparser.parse(url)
+    # source = feedparser.parse(url)
     defaultText = 'undefined'
-    defaultDate = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    urls = json.loads(request.body)
+    # defaultDate = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    defaultDate = datetime.datetime.now().isoformat()
     utc = pytz.utc
     berlin = pytz.timezone('Europe/Berlin')
-    for entry in source['items']:
-        feed = {
-            'title':defaultText,
-            'description':defaultText,
-            'link':defaultText,
-            'date':defaultDate
-        }
-        if('title' in entry):
-            feed['title'] = entry['title']
-        if('description' in entry):
-            feed['description'] = entry['description']
-        if('link' in entry):
-            feed['link'] = entry['link']
-        if('published_parsed' in entry):
-            date = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed']))
-            utcDate = utc.localize(date)
-            feed['date'] = utcDate.astimezone(berlin).strftime("%d-%m-%Y %H:%M:%S")
-        feeds.append(feed)
+    for url in urls:
+        source = feedparser.parse(url)
+        for entry in source['items']:
+            feed = {
+                'title':defaultText,
+                'description':defaultText,
+                'link':defaultText,
+                'date':defaultDate,
+                'url': defaultText
+            }
+            if('title' in entry):
+                feed['title'] = entry['title']
+            if('description' in entry):
+                feed['description'] = entry['description']
+            if('link' in entry):
+                feed['link'] = entry['link']
+            if('published_parsed' in entry):
+                date = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed']))
+                utcDate = utc.localize(date)
+                # feed['date'] = utcDate.astimezone(berlin).strftime("%d-%m-%Y %H:%M:%S")
+                feed['date'] = utcDate.astimezone(berlin).isoformat()
+                feed['url'] = url
+            feeds.append(feed)
+    try:
+        es.delete_index('feeds')
+    except:
+        pass
 
-    response = HttpResponse(json.dumps(feeds))
+    feedJson = json.dumps(feeds)
+    es.bulk((es.index_op(feed) for feed in feeds),
+        index = 'feeds',
+        doc_type = 'feed')
+
+    response = HttpResponse()
+    response.status_code = 201
     return response
