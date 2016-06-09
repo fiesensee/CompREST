@@ -60,7 +60,8 @@ def getFeeds(request):
     feeds = []
     # source = feedparser.parse(url)
     defaultText = 'undefined'
-    urls = json.loads(request.body)
+    # urls = json.loads(request.body)
+    urls = request.body
     # defaultDate = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     defaultDate = datetime.datetime.now().isoformat()
     utc = pytz.utc
