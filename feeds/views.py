@@ -99,7 +99,7 @@ def getFeeds(request):
     es.bulk((es.index_op(feed) for feed in feeds),
         index = 'feeds',
         doc_type = 'feed')
-
+    print es.refresh('feeds')
     response = HttpResponse()
     response.status_code = 201
     return response
