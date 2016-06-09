@@ -60,13 +60,14 @@ def getFeeds(request):
     feeds = []
     # source = feedparser.parse(url)
     defaultText = 'undefined'
-    # urls = json.loads(request.body)
-    urls = request.body
+    urls = json.loads(request.body)
+    # urls = request.body
     # defaultDate = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     defaultDate = datetime.datetime.now().isoformat()
     utc = pytz.utc
     berlin = pytz.timezone('Europe/Berlin')
     for url in urls:
+        print url
         source = feedparser.parse(url)
         for entry in source['items']:
             feed = {
