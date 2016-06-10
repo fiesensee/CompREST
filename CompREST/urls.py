@@ -25,6 +25,7 @@ router.register(r'users', views.UserViewSet)
 router.register(r'feedsources', views.FeedSourceViewSet)
 router.register(r'labels', views.LabelViewSet)
 router.register(r'feedsourcelabels', views.FeedSourceLabelViewSet)
+# router.register(r'test', views.FeedSourceView)
 
 
 

@@ -2,7 +2,7 @@ from django.shortcuts import render, HttpResponseRedirect
 from django.contrib.auth.models import User
 from django.http import HttpResponse
 from .models import FeedSource, Label, FeedSourceLabel
-from rest_framework import viewsets, permissions, generics
+from rest_framework import viewsets, permissions, generics, mixins
 from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
 from oauth2_provider.decorators import protected_resource
@@ -18,12 +18,18 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
 
+
 class FeedSourceViewSet(viewsets.ModelViewSet):
     queryset = FeedSource.objects.all()
     serializer_class = FeedSourceSerializer
 
     def perform_create(self, serializer):
         serializer.save(user = self.request.user)
+
+    def get_queryset(self):
+        user = self.request.user
+        return FeedSource.objects.filter(user=user)
+
 
 class LabelViewSet(viewsets.ModelViewSet):
     queryset = Label.objects.all()
@@ -32,9 +38,17 @@ class LabelViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user = self.request.user)
 
+    def get_queryset(self):
+        user = self.request.user
+        return Label.objects.filter(user=user)
+
 class FeedSourceLabelViewSet(viewsets.ModelViewSet):
     queryset = FeedSourceLabel.objects.all()
     serializer_class = FeedSourceLabelSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return FeedSourceLabel.objects.filter(user=user)
 
 class CreateFeedSourceLabels(ProtectedResourceView):
 
