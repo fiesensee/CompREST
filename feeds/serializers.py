@@ -6,7 +6,7 @@ from .models import FeedSource, Label, FeedSourceLabel
 class UserSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = User
-        fields = ('url', 'username', 'email')
+        fields = ('url', 'username', 'password', 'email')
 
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
