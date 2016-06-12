@@ -8,6 +8,10 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
         model = User
         fields = ('url', 'username', 'email')
 
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user
+
 class FeedSourceSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
 
