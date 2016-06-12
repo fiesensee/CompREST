@@ -6,7 +6,7 @@ from rest_framework import viewsets, permissions, generics, mixins
 from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
 from oauth2_provider.decorators import protected_resource
-import json, feedparser, pytz
+import json, feedparser, pytz, hashlib, base64
 import datetime
 import time
 from django.views.decorators.csrf import csrf_exempt
@@ -71,17 +71,25 @@ class CreateFeedSourceLabels(ProtectedResourceView):
 @csrf_exempt
 def getFeeds(request):
     es = ElasticSearch('http://fisensee.ddns.net:9200/')
+
+    query = {"query": {"range": {"date": {"lte": "now-1M/M"}}}}
+    oldFeeds = es.search(query, size=300, index='feeds')
+    print es.search(query, size=300, index='feeds')
+
+    if(len(oldFeeds['hits']['hits']) is not 0):
+        es.bulk(es.delete_op(id=feed['_id'], index='feeds',
+        doc_type='feed') for feed in oldFeeds['hits']['hits'])
+
+
     feeds = []
-    # source = feedparser.parse(url)
     defaultText = 'undefined'
     urls = json.loads(request.body)
-    # urls = request.body
-    # defaultDate = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     defaultDate = datetime.datetime.now().isoformat()
     utc = pytz.utc
     berlin = pytz.timezone('Europe/Berlin')
+    now = datetime.datetime.today()
+    dateThreshold = now - datetime.timedelta(weeks=8)
     for url in urls:
-        print url
         source = feedparser.parse(url)
         for entry in source['items']:
             feed = {
@@ -99,15 +107,18 @@ def getFeeds(request):
                 feed['link'] = entry['link']
             if('published_parsed' in entry):
                 date = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed']))
+                if(date < dateThreshold):
+                    break
                 utcDate = utc.localize(date)
-                # feed['date'] = utcDate.astimezone(berlin).strftime("%d-%m-%Y %H:%M:%S")
                 feed['date'] = utcDate.astimezone(berlin).isoformat()
-                feed['url'] = url
+            #id creation should be enough for now, but it's made to fail
+            if('title' or 'published_parsed' in entry):
+                feed['id'] = base64.urlsafe_b64encode(hashlib.sha256((feed['title'] + feed['date']).encode('utf8')).hexdigest())
+            else:
+                feed['id'] = base64.urlsafe_b64encode(hashlib.sha256((feed['title']).encode('utf8')).hexdigest())
+            feed['url'] = url
             feeds.append(feed)
-    try:
-        es.delete_index('feeds')
-    except:
-        pass
+
 
     feedJson = json.dumps(feeds)
     es.bulk((es.index_op(feed) for feed in feeds),
