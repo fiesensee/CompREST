@@ -27,3 +27,8 @@ class FeedSourceLabel(models.Model):
     label = models.ForeignKey(Label, on_delete=models.CASCADE)
     feedSource = models.ForeignKey(FeedSource, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+class RefreshService(models.Model):
+
+    clientActive = models.BooleanField(default=False)
+    running = models.BooleanField(default=False)

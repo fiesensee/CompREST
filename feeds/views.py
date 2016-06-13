@@ -1,7 +1,8 @@
 from django.shortcuts import render, HttpResponseRedirect
 from django.contrib.auth.models import User
 from django.http import HttpResponse
-from .models import FeedSource, Label, FeedSourceLabel
+from django.views.generic import View
+from .models import FeedSource, Label, FeedSourceLabel, RefreshService
 from rest_framework import viewsets, permissions, generics, mixins
 from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
@@ -9,6 +10,7 @@ from oauth2_provider.decorators import protected_resource
 import json, feedparser, pytz, hashlib, base64
 import datetime
 import time
+from threading import Timer
 from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.views.generic import ProtectedResourceView
 from pyelasticsearch import ElasticSearch
@@ -68,8 +70,53 @@ class CreateFeedSourceLabels(ProtectedResourceView):
                 feedSource = FeedSource.objects.get(pk = feedSourceId)
                 FeedSourceLabel.objects.create(label = label, feedSource = feedSource, user = self.request.user)
 
+def resetService(request):
+    service = RefreshService.objects.first()
+    service.running = False
+    service.save()
+    response = HttpResponse()
+    response.status_code = 200
+    return response
+
+def activateClient(request):
+    service = RefreshService.objects.first()
+    if(service is None):
+        service = RefreshService.objects.create()
+    service.clientActive = True
+    service.save()
+
+    print "activated"
+    print (service.running)
+    if(service.running is False):
+        print "start service"
+        refresh(service)
+        timer = Timer(60*30, inactivate, [service])
+        timer.start()
+
+    response = HttpResponse()
+    response.status_code = 200
+    return response
+
+def inactivate(service):
+    print "stopping service"
+    service.clientActive = False
+    service.running = False
+    service.save()
+
+
+def refresh(service):
+    print "check clientActive"
+    service.running = True
+    service.save()
+    timer = Timer(60*5, refresh, [service])
+    if(service.clientActive):
+        print "start refresh"
+        timer.start()
+        getFeeds()
+
 @csrf_exempt
-def getFeeds(request):
+def getFeeds():
+    print "refreshing"
     es = ElasticSearch('http://fisensee.ddns.net:9200/')
 
     query = {"query": {"range": {"date": {"lte": "now-1M/M"}}}}
@@ -81,14 +128,23 @@ def getFeeds(request):
         doc_type='feed') for feed in oldFeeds['hits']['hits'])
 
 
+    feedSources = FeedSource.objects.all()
     feeds = []
     defaultText = 'undefined'
-    urls = json.loads(request.body)
+    # urls = json.loads(request.body)
     defaultDate = datetime.datetime.now().isoformat()
     utc = pytz.utc
     berlin = pytz.timezone('Europe/Berlin')
     now = datetime.datetime.today()
     dateThreshold = now - datetime.timedelta(weeks=8)
+
+    allUrls = []
+    for feedSource in feedSources:
+        print feedSource.sourceUrl
+        allUrls.append(feedSource.sourceUrl)
+
+    urls = set(allUrls)
+    print str(urls)
     for url in urls:
         source = feedparser.parse(url)
         for entry in source['items']:
@@ -118,6 +174,7 @@ def getFeeds(request):
                 feed['id'] = base64.urlsafe_b64encode(hashlib.sha256((feed['title']).encode('utf8')).hexdigest())
             feed['url'] = url
             feeds.append(feed)
+
 
 
     feedJson = json.dumps(feeds)
