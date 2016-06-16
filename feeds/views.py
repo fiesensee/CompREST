@@ -7,13 +7,11 @@ from rest_framework import viewsets, permissions, generics, mixins
 from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
 from oauth2_provider.decorators import protected_resource
-import json, feedparser, pytz, hashlib, base64
-import datetime
+
 import time
-from threading import Timer
+import timer
 from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.views.generic import ProtectedResourceView
-from pyelasticsearch import ElasticSearch
 
 class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, TokenHasReadWriteScope]
@@ -72,88 +70,11 @@ class CreateFeedSourceLabels(ProtectedResourceView):
                 FeedSourceLabel.objects.create(label = label, feedSource = feedSource, user = self.request.user)
 
 
+class Refresher(View):
 
+    def get(self, request):
+        timer.restartTimer()
 
-def resetTimer(request):
-    refreshTimer.cancel()
-    refresh()
-
-    response = HttpResponse()
-    response.status_code = 200
-    return response
-
-
-def refresh():
-    getFeeds()
-    refreshTimer.start()
-
-refreshTimer = Timer(60*5, refresh)
-
-@csrf_exempt
-def getFeeds():
-    print "refreshing"
-    es = ElasticSearch('http://fisensee.ddns.net:9200/')
-
-    query = {"query": {"range": {"date": {"lte": "now-1M/M"}}}}
-    oldFeeds = es.search(query, size=300, index='feeds')
-
-    if(len(oldFeeds['hits']['hits']) is not 0):
-        es.bulk(es.delete_op(id=feed['_id'], index='feeds',
-        doc_type='feed') for feed in oldFeeds['hits']['hits'])
-
-
-    feedSources = FeedSource.objects.all()
-    feeds = []
-    defaultText = 'undefined'
-    # urls = json.loads(request.body)
-    defaultDate = datetime.datetime.now().isoformat()
-    utc = pytz.utc
-    berlin = pytz.timezone('Europe/Berlin')
-    now = datetime.datetime.today()
-    dateThreshold = now - datetime.timedelta(weeks=8)
-
-    allUrls = []
-    for feedSource in feedSources:
-        allUrls.append(feedSource.sourceUrl)
-
-    urls = set(allUrls)
-    for url in urls:
-        source = feedparser.parse(url)
-        for entry in source['items']:
-            feed = {
-                'title':defaultText,
-                'description':defaultText,
-                'link':defaultText,
-                'date':defaultDate,
-                'url': defaultText
-            }
-            if('title' in entry):
-                feed['title'] = entry['title']
-            if('description' in entry):
-                feed['description'] = entry['description']
-            if('link' in entry):
-                feed['link'] = entry['link']
-            if('published_parsed' in entry):
-                date = datetime.datetime.fromtimestamp(time.mktime(entry['published_parsed']))
-                if(date < dateThreshold):
-                    break
-                utcDate = utc.localize(date)
-                feed['date'] = utcDate.astimezone(berlin).isoformat()
-            #id creation should be enough for now, but it's made to fail
-            if('title' or 'published_parsed' in entry):
-                feed['id'] = base64.urlsafe_b64encode(hashlib.sha256((feed['title'] + feed['date']).encode('utf8')).hexdigest())
-            else:
-                feed['id'] = base64.urlsafe_b64encode(hashlib.sha256((feed['title']).encode('utf8')).hexdigest())
-            feed['url'] = url
-            feeds.append(feed)
-
-
-
-    feedJson = json.dumps(feeds)
-    es.bulk((es.index_op(feed) for feed in feeds),
-        index = 'feeds',
-        doc_type = 'feed')
-    print es.refresh('feeds')
-    response = HttpResponse()
-    response.status_code = 201
-    return response
+        response = HttpResponse()
+        response.status_code = 200
+        return response
