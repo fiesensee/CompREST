@@ -83,8 +83,7 @@ def getFeeds():
 
 
 
-    feedJson = json.dumps(feeds)
-    es.bulk((es.index_op(feed) for feed in feeds),
+    es.bulk((es.index_op(feed, **{'id': feed.pop('id')}) for feed in feeds),
         index = 'feeds',
         doc_type = 'feed')
     print es.refresh('feeds')
