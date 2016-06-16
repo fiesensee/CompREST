@@ -19,6 +19,8 @@ from rest_framework import routers
 from feeds import views
 import oauth2_provider
 from httpproxy.views import HttpProxy
+from django.views.decorators.csrf import csrf_exempt
+
 
 router = routers.DefaultRouter()
 router.register(r'users', views.UserViewSet)
@@ -31,7 +33,7 @@ router.register(r'feedsourcelabels', views.FeedSourceLabelViewSet)
 
 urlpatterns = [
     url(r'^', include(router.urls)),
-    url(r'^updatefeedsourcelabels', views.CreateFeedSourceLabels.as_view()),
+    url(r'^updatefeedsourcelabels', csrf_exempt(views.CreateFeedSourceLabels.as_view())),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
     url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
     url(r'^admin/', admin.site.urls),

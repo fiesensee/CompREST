@@ -51,10 +51,6 @@ class FeedSourceLabelViewSet(viewsets.ModelViewSet):
 
 class CreateFeedSourceLabels(ProtectedResourceView):
 
-    @csrf_exempt
-    def dispatch(self, *args, **kwargs):
-        super(CreateFeedSourceLabels, self).dispatch(*args, **kwargs)
-
     def post(self, request, *args, **kwargs):
         joins = json.loads(request.body)
         print joins
@@ -69,6 +65,7 @@ class CreateFeedSourceLabels(ProtectedResourceView):
 
         response = HttpResponse()
         response.status_code = 201
+        print response.status_code
         return response
 
 
