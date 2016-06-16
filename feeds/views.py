@@ -52,6 +52,7 @@ class FeedSourceLabelViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return FeedSourceLabel.objects.filter(user=user)
 
+
 class CreateFeedSourceLabels(ProtectedResourceView):
 
     @csrf_exempt
@@ -70,49 +71,23 @@ class CreateFeedSourceLabels(ProtectedResourceView):
                 feedSource = FeedSource.objects.get(pk = feedSourceId)
                 FeedSourceLabel.objects.create(label = label, feedSource = feedSource, user = self.request.user)
 
-def resetService(request):
-    service = RefreshService.objects.first()
-    service.running = False
-    service.save()
-    response = HttpResponse()
-    response.status_code = 200
-    return response
 
-def activateClient(request):
-    service = RefreshService.objects.first()
-    if(service is None):
-        service = RefreshService.objects.create()
-    service.clientActive = True
-    service.save()
 
-    print "activated"
-    print (service.running)
-    if(service.running is False):
-        print "start service"
-        refresh(service)
-        timer = Timer(60*30, inactivate, [service])
-        timer.start()
+
+def resetTimer(request):
+    refreshTimer.cancel()
+    refresh()
 
     response = HttpResponse()
     response.status_code = 200
     return response
 
-def inactivate(service):
-    print "stopping service"
-    service.clientActive = False
-    service.running = False
-    service.save()
 
+def refresh():
+    getFeeds()
+    refreshTimer.start()
 
-def refresh(service):
-    print "check clientActive"
-    service.running = True
-    service.save()
-    timer = Timer(60*5, refresh, [service])
-    if(service.clientActive):
-        print "start refresh"
-        timer.start()
-        getFeeds()
+refreshTimer = Timer(60*5, refresh)
 
 @csrf_exempt
 def getFeeds():
@@ -121,7 +96,6 @@ def getFeeds():
 
     query = {"query": {"range": {"date": {"lte": "now-1M/M"}}}}
     oldFeeds = es.search(query, size=300, index='feeds')
-    print es.search(query, size=300, index='feeds')
 
     if(len(oldFeeds['hits']['hits']) is not 0):
         es.bulk(es.delete_op(id=feed['_id'], index='feeds',
@@ -140,11 +114,9 @@ def getFeeds():
 
     allUrls = []
     for feedSource in feedSources:
-        print feedSource.sourceUrl
         allUrls.append(feedSource.sourceUrl)
 
     urls = set(allUrls)
-    print str(urls)
     for url in urls:
         source = feedparser.parse(url)
         for entry in source['items']:
