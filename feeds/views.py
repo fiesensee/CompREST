@@ -7,9 +7,7 @@ from rest_framework import viewsets, permissions, generics, mixins
 from .serializers import UserSerializer, FeedSourceSerializer, LabelSerializer, FeedSourceLabelSerializer
 from oauth2_provider.ext.rest_framework import TokenHasReadWriteScope, TokenHasScope
 from oauth2_provider.decorators import protected_resource
-
-import time
-import timer
+import time, timer, json
 from django.views.decorators.csrf import csrf_exempt
 from oauth2_provider.views.generic import ProtectedResourceView
 
