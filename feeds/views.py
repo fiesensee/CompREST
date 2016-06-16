@@ -69,6 +69,10 @@ class CreateFeedSourceLabels(ProtectedResourceView):
                 feedSource = FeedSource.objects.get(pk = feedSourceId)
                 FeedSourceLabel.objects.create(label = label, feedSource = feedSource, user = self.request.user)
 
+        response = HttpResponse()
+        response.status_code = 201
+        return response
+
 
 class Refresher(View):
 
